@@ -115,7 +115,7 @@ No. Los mensajes de error predeterminados de WordPress ("Contraseña incorrecta"
 <table>
   <tr>
     <td align="center">
-      <b>Formulario de Comentarios</b><br>
+      <b>Formulario de Inicio de Sesión</b><br>
       <img src="images/screenshot-1.png" alt="CAPTCHA en Comentarios" width="350">
     </td>
     <td align="center">
@@ -125,11 +125,11 @@ No. Los mensajes de error predeterminados de WordPress ("Contraseña incorrecta"
   </tr>
   <tr>
     <td align="center">
-      <b>Formulario de Registro</b><br>
+      <b>Settings</b><br>
       <img src="images/screenshot-3.png" alt="CAPTCHA en Registro" width="350">
     </td>
     <td align="center">
-      <b>Página de Ajustes</b><br>
+      <b>Formulario de creación de categorías</b><br>
       <img src="images/screenshot-4.png" alt="Página de Ajustes del Plugin" width="350">
     </td>
   </tr>
