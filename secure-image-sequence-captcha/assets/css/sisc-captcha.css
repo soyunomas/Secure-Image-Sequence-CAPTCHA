@@ -1,0 +1,81 @@
+/* assets/css/sisc-captcha.css */
+.sisc-captcha-container {
+    margin: 15px 0;
+    border: 1px solid #ccd0d4;
+    padding: 15px;
+    background-color: #fdfdfd;
+    border-radius: 4px;
+}
+/* Estilos específicos contexto */
+.sisc-context-login, .sisc-context-register {
+    margin-left: 0; /* Ajustar márgenes para wp-login */
+    margin-right: 0;
+}
+.sisc-question {
+    font-weight: bold;
+    margin-bottom: 15px;
+    font-size: 1.1em;
+    color: #333;
+    display: block; /* Asegurar que ocupa su línea */
+}
+/* Etiqueta en login/registro */
+.sisc-context-login .sisc-question,
+.sisc-context-register .sisc-question {
+    font-weight: normal; /* Usar estilo normal de etiqueta WP */
+    color: #444;
+    margin-bottom: 5px;
+}
+
+.sisc-image-selection-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px; /* Espacio reducido */
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 10px;
+    /* min-height es añadido vía wp_add_inline_style */
+}
+.sisc-captcha-image {
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: border-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+    background-color: #eee;
+    border-radius: 3px;
+    display: block;
+    /* max-width y max-height son añadidos vía wp_add_inline_style */
+    width: auto;
+    height: auto;
+    object-fit: cover;
+}
+.sisc-captcha-image:hover,
+.sisc-captcha-image:focus {
+    border-color: #007cba;
+    outline: none;
+    transform: scale(1.05);
+}
+.sisc-captcha-image.sisc-selected {
+    border-color: #4CAF50;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.7);
+    transform: scale(1.02);
+}
+.sisc-error-js { /* Mensaje <noscript> */
+    color: #d63638;
+    border: 1px solid #d63638;
+    padding: 8px 12px;
+    margin-top: 10px;
+    background-color: #fbeaea;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+.sisc-error, /* Error genérico (generación) */
+.comment-form-error /* Error específico comentarios */
+{
+     color: #721c24;
+     background-color: #f8d7da;
+     border: 1px solid #f5c6cb;
+     padding: .75rem 1.25rem;
+     margin-top: 1rem;
+     margin-bottom: 1rem;
+     border-radius: .25rem;
+}
+/* Errores en login/registro usan clases de WP */
