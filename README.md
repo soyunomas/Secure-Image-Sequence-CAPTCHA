@@ -111,13 +111,30 @@ No. Los mensajes de error predeterminados de WordPress ("Contraseña incorrecta"
 
 ## Capturas de Pantalla
 
-*(Añade aquí los enlaces a tus capturas de pantalla después de subirlas)*
-
-1.  `![CAPTCHA en Comentarios](ruta/a/screenshot-comments.png)`
-2.  `![CAPTCHA en Inicio de Sesión](ruta/a/screenshot-login.png)`
-3.  `![CAPTCHA en Registro](ruta/a/screenshot-register.png)`
-4.  `![Página de Ajustes del Plugin](ruta/a/screenshot-settings.png)`
-5.  `![Pantalla de Admin de Categorías CAPTCHA](ruta/a/screenshot-taxonomy.png)`
+<div align="center">
+<table>
+  <tr>
+    <td align="center">
+      <b>Formulario de Comentarios</b><br>
+      <img src="images/screenshot-1.png" alt="CAPTCHA en Comentarios" width="350">
+    </td>
+    <td align="center">
+      <b>Formulario de Inicio de Sesión</b><br>
+      <img src="images/screenshot-2.png" alt="CAPTCHA en Inicio de Sesión" width="350">
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>Formulario de Registro</b><br>
+      <img src="images/screenshot-3.png" alt="CAPTCHA en Registro" width="350">
+    </td>
+    <td align="center">
+      <b>Página de Ajustes</b><br>
+      <img src="images/screenshot-4.png" alt="Página de Ajustes del Plugin" width="350">
+    </td>
+  </tr>
+</table>
+</div>
 
 ---
 
