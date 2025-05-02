@@ -95,18 +95,6 @@ El CAPTCHA aparecerá ahora en los formularios seleccionados usando la fuente de
 
 Se requiere un mínimo de **6 imágenes** por categoría personalizada o carpeta de conjunto predefinido.
 
-### ¿Funciona el CAPTCHA si JavaScript está deshabilitado?
-
-No. Se mostrará un mensaje indicando que JavaScript es necesario. El CAPTCHA no se puede resolver ni enviar correctamente sin JavaScript habilitado en el navegador del usuario.
-
-### ¿Por qué la columna 'Cantidad' mostraba 0 en Medios > Categorías CAPTCHA?
-
-Era un error visual en el núcleo de WordPress al contar adjuntos en taxonomías. Este plugin incluye una corrección, reemplazando la columna por defecto con una columna personalizada "Image Count" que muestra el número correcto de imágenes asociadas.
-
-### Los mensajes de error de inicio de sesión revelan si un nombre de usuario existe. ¿Soluciona esto el plugin?
-
-No. Los mensajes de error predeterminados de WordPress ("Contraseña incorrecta" vs. "Nombre de usuario desconocido") pueden usarse para la enumeración de usuarios. Este plugin protege contra ataques *automatizados* pero no modifica esos mensajes del núcleo. Se recomienda abordar este comportamiento del núcleo de WordPress por separado para mejorar la seguridad, por ejemplo, usando un filtro para mostrar siempre un mensaje de error de inicio de sesión genérico, sin importar si falló el usuario o la contraseña.
-
 ---
 
 ## Capturas de Pantalla
