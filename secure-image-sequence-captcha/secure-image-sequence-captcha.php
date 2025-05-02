@@ -6,7 +6,7 @@
  * Version:           1.3.1
  * Requires at least: 5.8
  * Requires PHP:      7.4
- * Author:            Tu Nombre o Nombre de Empresa
+ * Author:            Soyunomas
  * Author URI:        https://example.com/
  * License:           GPL v2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
