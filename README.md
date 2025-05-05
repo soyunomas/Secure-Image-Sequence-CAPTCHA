@@ -1,7 +1,7 @@
 # Secure Image Sequence CAPTCHA
 
 [![License: GPL v2 or later](https://img.shields.io/badge/License-GPL%20v2%20or%20later-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
-[![Stable tag](https://img.shields.io/badge/Stable%20tag-1.3.1-brightgreen.svg)](https://github.com/Soyunomas/Secure-Image-Sequence-CAPTCHA/releases/tag/1.3.1)
+[![Stable tag](https://img.shields.io/badge/Stable%20tag-1.3.2-brightgreen.svg)](https://github.com/Soyunomas/Secure-Image-Sequence-CAPTCHA/releases/tag/1.3.2)
 [![Requires WordPress](https://img.shields.io/badge/Requires%20WordPress-5.8+-blue.svg)](https://wordpress.org/download/)
 [![Tested up to WordPress](https://img.shields.io/badge/Tested%20up%20to%20WordPress-6.8-blue.svg)](https://wordpress.org/download/)
 [![Requires PHP](https://img.shields.io/badge/Requires%20PHP-7.4+-blue.svg)](https://www.php.net/releases/)
@@ -69,6 +69,8 @@ Este plugin proporciona una alternativa sólida a los CAPTCHAs tradicionales bas
         *   El nombre del archivo de imagen (sin extensión, con espacios en lugar de guiones/barras bajas) se usará para la pregunta de la secuencia.
 4.  Haz clic en `Guardar cambios`.
 
+**Nota Importante sobre el Tamaño de las Imágenes:** Para asegurar una experiencia de usuario consistente y evitar problemas de diseño, las imágenes del CAPTCHA se mostrarán con un tamaño **máximo de 100x100 píxeles** en el frontend. Aunque puedes subir imágenes más grandes (especialmente para la opción "Personalizada"), serán redimensionadas visualmente por el CSS del plugin. Para la opción "Predefinida", se recomienda usar imágenes cercanas a este tamaño (ej., 75x75px) para una carga más rápida.
+
 El CAPTCHA aparecerá ahora en los formularios seleccionados usando la fuente de imágenes elegida.
 
 ---
@@ -87,13 +89,13 @@ El CAPTCHA aparecerá ahora en los formularios seleccionados usando la fuente de
 
 1.  Esto requiere que el paquete del plugin contenga las imágenes. Crea una carpeta `images` en la raíz del plugin (`wp-content/plugins/secure-image-sequence-captcha/images/`).
 2.  Dentro de `images`, crea subcarpetas para cada conjunto (ej., `images/fruits/`, `images/animals/`).
-3.  Coloca los archivos de imagen (`.jpg`, `.png`, `.gif`, `.webp`) dentro de estas subcarpetas.
+3.  Coloca los archivos de imagen (`.jpg`, `.png`, `.gif`, `.webp`) dentro de estas subcarpetas. Se recomienda usar imágenes de aproximadamente 75x75 píxeles.
 4.  Asegúrate de que cada subcarpeta tenga **al menos 6 imágenes**.
 5.  Ve a `Ajustes` > `Image Sequence CAPTCHA` y selecciona `Conjuntos de Imágenes Predefinidos` como `Fuente de Imágenes`.
 
 ### ¿Cuántas imágenes necesito por categoría o conjunto?
 
-Se requiere un mínimo de **6 imágenes** por categoría personalizada o carpeta de conjunto predefinido.
+Se requiere un mínimo de **6 imágenes** por categoría personalizada o carpeta de conjunto predefinido. Esto permite al plugin seleccionar 3 imágenes para la secuencia correcta y 3 imágenes distractoras.
 
 ---
 
@@ -134,7 +136,11 @@ Se requiere un mínimo de **6 imágenes** por categoría personalizada o carpeta
 
 ## Changelog (Historial de Cambios)
 
-### 1.3.1 (Actual)
+### 1.3.2 (Actual)
+*   Optimización: Estandarizado el tamaño de las imágenes predefinidas incluidas a 75x75px para consistencia y rendimiento.
+*   Mejora: Añadida nota en el readme sobre el tamaño máximo de visualización de 100x100px.
+
+### 1.3.1
 *   Corrección: Mostrar correctamente el número de imágenes asociadas en la columna "Image Count" en la pantalla de admin de Categorías CAPTCHA.
 *   Ajuste: Refinamientos menores de código.
 
@@ -165,5 +171,6 @@ Se requiere un mínimo de **6 imágenes** por categoría personalizada o carpeta
 
 ## Licencia
 
-Secure Image Sequence CAPTCHA está licenciado bajo [GPLv2 o posterior](https://www.gnu.org/licenses/gpl-2.0.html).
-Consulta el archivo `license.txt` incluido con el plugin para ver el texto completo.
+GPL v2 or later
+
+---
