@@ -1,7 +1,7 @@
 # Secure Image Sequence CAPTCHA
 
 [![License: GPL v2 or later](https://img.shields.io/badge/License-GPL%20v2%20or%20later-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
-[![Stable tag](https://img.shields.io/badge/Stable%20tag-1.3.2-brightgreen.svg)](https://github.com/Soyunomas/Secure-Image-Sequence-CAPTCHA/releases/tag/1.4.0)
+[![Stable tag](https://img.shields.io/badge/Stable%20tag-1.4.0-brightgreen.svg)](https://github.com/Soyunomas/Secure-Image-Sequence-CAPTCHA/releases/tag/1.4.0)
 [![Requires WordPress](https://img.shields.io/badge/Requires%20WordPress-5.8+-blue.svg)](https://wordpress.org/download/)
 [![Tested up to WordPress](https://img.shields.io/badge/Tested%20up%20to%20WordPress-6.8-blue.svg)](https://wordpress.org/download/)
 [![Requires PHP](https://img.shields.io/badge/Requires%20PHP-7.4+-blue.svg)](https://www.php.net/releases/)
