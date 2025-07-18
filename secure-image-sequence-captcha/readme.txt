@@ -1,9 +1,3 @@
-# Secure Image Sequence CAPTCHA
-
-Protege tus formularios de comentarios, inicio de sesión y registro de WordPress contra bots con un CAPTCHA de secuencia de imágenes seguro y fácil de usar.
-
----
-
 ## Descripción
 
 Secure Image Sequence CAPTCHA mejora la seguridad de tu sitio web añadiendo un desafío CAPTCHA intuitivo a tus formularios. En lugar de descifrar texto difícil de leer, los usuarios simplemente hacen clic en una serie de imágenes en el orden correcto según las instrucciones. Este plugin se centra en una seguridad robusta y la facilidad de uso.
@@ -21,7 +15,7 @@ Secure Image Sequence CAPTCHA mejora la seguridad de tu sitio web añadiendo un 
 *   📝 **Protección Múltiple de Formularios:** Habilita el CAPTCHA en Comentarios, Formulario de Inicio de Sesión (`wp-login.php`) y Formulario de Registro.
 *   🖼️ **Fuentes de Imágenes Flexibles:**
     *   **Imágenes Personalizadas:** Sube tus propias imágenes a la Biblioteca de Medios y organízalas usando la taxonomía dedicada "Medios -> Categorías CAPTCHA".
-    *   **Conjuntos Predefinidos:** Utiliza conjuntos de imágenes incorporados (como frutas, animales) incluidos directamente en la carpeta `/images` del plugin para una configuración rápida (debes proporcionar estas imágenes).
+    *   **Conjuntos Predefinidos:** Utiliza conjuntos de imágenes incorporados (como frutas, animales) incluidos directamente en la carpeta `/images` del plugin para una configuración rápida.
 *   ⚙️ **Página de Ajustes de Admin:** Configura fácilmente dónde aparece el CAPTCHA y selecciona la fuente de imágenes en "Ajustes -> Image Sequence CAPTCHA".
 *   📊 **Contador de Admin Corregido:** Corrige el error visual donde la columna "Cantidad" para la taxonomía Categorías CAPTCHA mostraba incorrectamente '0' para los adjuntos, mostrando el recuento correcto en su lugar.
 *   🌍 **Listo para Internacionalización:** Las cadenas de texto del plugin son traducibles (requiere generación de archivo `.pot` y archivos `.po`/`.mo`).
@@ -101,7 +95,14 @@ Se requiere un mínimo de **6 imágenes** por categoría personalizada o carpeta
 
 ## Changelog (Historial de Cambios)
 
-### 1.3.2 (Actual)
+### 1.4.0 (Actual)
+*   **Corrección de Estabilidad:** Solucionado un fallo que podía bloquear a los administradores fuera de su propio sitio si una categoría de imágenes personalizada no tenía el número mínimo de imágenes requerido.
+*   **Implementado Mecanismo "Fail-Safe":** Si el CAPTCHA no se puede generar por un error de configuración (ej., no hay ninguna categoría válida), el plugin ahora permitirá que los formularios (inicio de sesión, registro) se envíen, previniendo el bloqueo del sitio y priorizando el acceso del administrador.
+*   **Mejora de UX (Avisos Inteligentes):** El plugin ahora muestra avisos contextuales en la página de Ajustes: un error (rojo) si el CAPTCHA está inactivo por falta de imágenes, y una advertencia (amarillo) si algunas categorías están mal configuradas y están siendo ignoradas.
+*   **Mejora de UX (Guía Contextual):** Añadido un aviso informativo en la página "Medios -> Categorías CAPTCHA" para recordar al administrador el requisito mínimo de 6 imágenes.
+*   **Refactorización de la Lógica de Generación:** La selección de imágenes personalizadas ahora filtra proactivamente las categorías inválidas, asegurando que el CAPTCHA siempre use un conjunto de imágenes válido si existe alguno, mejorando la robustez general.
+
+### 1.3.2
 *   Optimización: Estandarizado el tamaño de las imágenes predefinidas incluidas a 75x75px para consistencia y rendimiento.
 *   Mejora: Añadida nota en el readme sobre el tamaño máximo de visualización de 100x100px.
 
