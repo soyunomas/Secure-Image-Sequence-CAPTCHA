@@ -1,7 +1,7 @@
 # Secure Image Sequence CAPTCHA
 
 [![License: GPL v2 or later](https://img.shields.io/badge/License-GPL%20v2%20or%20later-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
-[![Stable tag](https://img.shields.io/badge/Stable%20tag-1.3.2-brightgreen.svg)](https://github.com/Soyunomas/Secure-Image-Sequence-CAPTCHA/releases/tag/1.3.2)
+[![Stable tag](https://img.shields.io/badge/Stable%20tag-1.3.2-brightgreen.svg)](https://github.com/Soyunomas/Secure-Image-Sequence-CAPTCHA/releases/tag/1.4.0)
 [![Requires WordPress](https://img.shields.io/badge/Requires%20WordPress-5.8+-blue.svg)](https://wordpress.org/download/)
 [![Tested up to WordPress](https://img.shields.io/badge/Tested%20up%20to%20WordPress-6.8-blue.svg)](https://wordpress.org/download/)
 [![Requires PHP](https://img.shields.io/badge/Requires%20PHP-7.4+-blue.svg)](https://www.php.net/releases/)
@@ -96,6 +96,35 @@ El CAPTCHA aparecerá ahora en los formularios seleccionados usando la fuente de
 ### ¿Cuántas imágenes necesito por categoría o conjunto?
 
 Se requiere un mínimo de **6 imágenes** por categoría personalizada o carpeta de conjunto predefinido. Esto permite al plugin seleccionar 3 imágenes para la secuencia correcta y 3 imágenes distractoras.
+
+---
+
+## Capturas de Pantalla
+
+<div align="center">
+<table>
+  <tr>
+    <td align="center">
+      <b>Formulario de Inicio de Sesión</b><br>
+      <img src="images/screenshot-1.png" alt="CAPTCHA en Comentarios" width="350">
+    </td>
+    <td align="center">
+      <b>Formulario de Inicio de Sesión</b><br>
+      <img src="images/screenshot-2.png" alt="CAPTCHA en Inicio de Sesión" width="350">
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>Settings</b><br>
+      <img src="images/screenshot-3.png" alt="CAPTCHA en Registro" width="350">
+    </td>
+    <td align="center">
+      <b>Formulario de creación de categorías</b><br>
+      <img src="images/screenshot-4.png" alt="Página de Ajustes del Plugin" width="350">
+    </td>
+  </tr>
+</table>
+</div>
 
 ---
 
