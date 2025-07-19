@@ -136,8 +136,8 @@ Se requiere un mínimo de **6 imágenes** por categoría personalizada o carpeta
 
 ## Changelog (Historial de Cambios)
 
-### **1.4.1 (Actual y Recomendada)**
-*   **Corrección de Seguridad (Severidad Alta):** Se ha corregido una vulnerabilidad de **Enumeración de Usuarios** (`User Enumeration`, CWE-203) en el formulario de inicio de sesión. Anteriormente, era posible determinar si un nombre de usuario existía o no analizando las respuestas de error, incluso sin resolver el CAPTCHA. La validación del CAPTCHA ahora se ejecuta antes que la autenticación de credenciales, bloqueando completamente esta fuga de información. Agradecemos el análisis que ha llevado a esta corrección.
+### 1.4.1 (Actual y Recomendada)
+*   **Corrección de Seguridad:** Se ha fortalecido la lógica de validación del formulario de inicio de sesión para prevenir la enumeración de usuarios. En versiones anteriores, un atacante podía verificar la existencia de nombres de usuario sin necesidad de resolver el CAPTCHA. Esta actualización asegura que la validación del CAPTCHA sea el primer paso, neutralizando este vector de ataque y mejorando significativamente la protección contra intentos de acceso automatizados.
 *   **Mejora de Seguridad (Hardening):** El mecanismo "Fail-Safe" ha sido mejorado. Ahora, si el CAPTCHA no puede generarse usando "Imágenes Personalizadas" (por ejemplo, debido a falta de imágenes), el plugin **hará un fallback automático y seguro para usar los "Conjuntos de Imágenes Predefinidos"** si están disponibles. Esto mantiene la protección del formulario activa en todo momento, previniendo una posible Denegación de Servicio (DoS) lógica por agotamiento de recursos y eliminando el comportamiento de "fail-open" de la v1.4.0.
 
 ### 1.4.0
