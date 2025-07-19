@@ -1197,21 +1197,39 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
             }
             return true;
         }
+
         public function validate_comment_captcha($commentdata)
         {
             if (empty($this->options["enable_comments"])) {
                 return $commentdata;
             }
+
             if (!isset($_POST["sisc_transient_key"])) {
-                error_log(
-                    "[SISC] CAPTCHA validation skipped for comment: sisc_transient_key not found in POST. This likely means the CAPTCHA failed to generate. Check plugin configuration (e.g., image counts in categories)."
+                wp_die(
+                    "<strong>" .
+                        esc_html__("ERROR:", "secure-image-sequence-captcha") .
+                        "</strong> " .
+                        esc_html__(
+                            "CAPTCHA validation failed because a required form field was missing. This may be due to a site configuration issue. Please go back and try again. If the problem persists, contact the site administrator.",
+                            "secure-image-sequence-captcha"
+                        ),
+                    esc_html__(
+                        "CAPTCHA Validation Error",
+                        "secure-image-sequence-captcha"
+                    ),
+                    [
+                        "response" => 403,
+                        "back_link" => true,
+                    ]
                 );
-                return $commentdata;
             }
+
             $validation_result = $this->perform_captcha_validation();
+
             if (is_wp_error($validation_result)) {
                 $error_code = $validation_result->get_error_code();
                 $error_message = $validation_result->get_error_message();
+
                 $transient_key =
                     "sisc_comm_err_" . md5(uniqid(wp_rand(), true));
                 $comment_data_to_preserve = [
@@ -1232,6 +1250,7 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                         ? $commentdata["comment_content"]
                         : "",
                 ];
+
                 set_transient(
                     $transient_key,
                     [
@@ -1241,21 +1260,25 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                     ],
                     SISC_ERROR_TRANSIENT_EXPIRATION
                 );
+
                 $redirect_url = isset($commentdata["comment_post_ID"])
                     ? get_permalink($commentdata["comment_post_ID"])
                     : wp_get_referer();
                 if (!$redirect_url) {
                     $redirect_url = home_url("/");
                 }
+
                 $redirect_url = add_query_arg(
                     "sisc_error",
                     $transient_key,
                     $redirect_url
                 );
                 $redirect_url .= "#commentform";
+
                 wp_safe_redirect($redirect_url);
                 exit();
             }
+
             return $commentdata;
         }
         public function display_transient_comment_error()
