@@ -93,11 +93,19 @@ Se requiere un mínimo de **6 imágenes** por categoría personalizada o carpeta
 
 ---
 
+Por supuesto. Aquí tienes la sección del `readme.txt` solicitada, con el changelog actualizado y redactado profesionalmente para la versión 1.4.1.
+
+---
+
 ## Changelog (Historial de Cambios)
 
-### 1.4.0 (Actual)
+### 1.4.1 (Actual y Recomendada)
+*   **Corrección de Seguridad:** Se ha fortalecido la lógica de validación del formulario de inicio de sesión para prevenir la enumeración de usuarios. En versiones anteriores, un atacante podía verificar la existencia de nombres de usuario sin necesidad de resolver el CAPTCHA. Esta actualización asegura que la validación del CAPTCHA sea el primer paso, neutralizando este vector de ataque y mejorando significativamente la protección contra intentos de acceso automatizados.
+*   **Mejora de Seguridad (Hardening):** El mecanismo "Fail-Safe" ha sido mejorado. Ahora, si el CAPTCHA no puede generarse usando "Imágenes Personalizadas" (por ejemplo, debido a falta de imágenes), el plugin **hará un fallback automático y seguro para usar los "Conjuntos de Imágenes Predefinidos"** si están disponibles. Esto mantiene la protección del formulario activa en todo momento, previniendo una posible Denegación de Servicio (DoS) lógica por agotamiento de recursos y eliminando el comportamiento de "fail-open" de la v1.4.0.
+
+### 1.4.0
 *   **Corrección de Estabilidad:** Solucionado un fallo que podía bloquear a los administradores fuera de su propio sitio si una categoría de imágenes personalizada no tenía el número mínimo de imágenes requerido.
-*   **Implementado Mecanismo "Fail-Safe":** Si el CAPTCHA no se puede generar por un error de configuración (ej., no hay ninguna categoría válida), el plugin ahora permitirá que los formularios (inicio de sesión, registro) se envíen, previniendo el bloqueo del sitio y priorizando el acceso del administrador.
+*   **Implementado Mecanismo "Fail-Safe" (Ahora Mejorado en 1.4.1):** Si el CAPTCHA no se puede generar por un error de configuración, el plugin ahora permitirá que los formularios (inicio de sesión, registro) se envíen, previniendo el bloqueo del sitio y priorizando el acceso del administrador. *Nota: Este comportamiento ha sido reemplazado por un fallback más seguro en la v1.4.1.*
 *   **Mejora de UX (Avisos Inteligentes):** El plugin ahora muestra avisos contextuales en la página de Ajustes: un error (rojo) si el CAPTCHA está inactivo por falta de imágenes, y una advertencia (amarillo) si algunas categorías están mal configuradas y están siendo ignoradas.
 *   **Mejora de UX (Guía Contextual):** Añadido un aviso informativo en la página "Medios -> Categorías CAPTCHA" para recordar al administrador el requisito mínimo de 6 imágenes.
 *   **Refactorización de la Lógica de Generación:** La selección de imágenes personalizadas ahora filtra proactivamente las categorías inválidas, asegurando que el CAPTCHA siempre use un conjunto de imágenes válido si existe alguno, mejorando la robustez general.

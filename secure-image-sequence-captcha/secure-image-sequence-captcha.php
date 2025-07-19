@@ -717,54 +717,74 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
         // --- Métodos CAPTCHA: Generación y Renderizado ---
         private function generate_captcha_challenge()
         {
-            $image_source = isset($this->options['image_source']) ? $this->options['image_source'] : 'custom';
-            
+            $image_source = isset($this->options["image_source"])
+                ? $this->options["image_source"]
+                : "custom";
+
             $image_details = false;
 
-            if ('custom' === $image_source) {
+            if ("custom" === $image_source) {
                 $status = $this->get_custom_category_status();
-                
-                if (!empty($status['valid'])) {
-                    $valid_category_ids = wp_list_pluck($status['valid'], 'term_id');
-                    $random_term_id = $valid_category_ids[array_rand($valid_category_ids)];
-                    
+
+                if (!empty($status["valid"])) {
+                    $valid_category_ids = wp_list_pluck(
+                        $status["valid"],
+                        "term_id"
+                    );
+                    $random_term_id =
+                        $valid_category_ids[array_rand($valid_category_ids)];
+
                     $query_args = [
-                        'post_type'      => 'attachment',
-                        'post_status'    => 'inherit',
-                        'posts_per_page' => 50,
-                        'tax_query'      => [[
-                            'taxonomy' => SISC_TAXONOMY_SLUG,
-                            'field'    => 'term_id',
-                            'terms'    => $random_term_id,
-                        ]],
-                        'fields'         => 'ids',
-                        'orderby'        => 'rand',
+                        "post_type" => "attachment",
+                        "post_status" => "inherit",
+                        "posts_per_page" => 50,
+                        "tax_query" => [
+                            [
+                                "taxonomy" => SISC_TAXONOMY_SLUG,
+                                "field" => "term_id",
+                                "terms" => $random_term_id,
+                            ],
+                        ],
+                        "fields" => "ids",
+                        "orderby" => "rand",
                     ];
                     $image_query = new WP_Query($query_args);
                     $all_image_ids = $image_query->posts;
                     wp_reset_postdata();
 
-                    $selected_image_ids = array_slice($all_image_ids, 0, SISC_TOTAL_IMAGES);
-                    
+                    $selected_image_ids = array_slice(
+                        $all_image_ids,
+                        0,
+                        SISC_TOTAL_IMAGES
+                    );
+
                     if (count($selected_image_ids) === SISC_TOTAL_IMAGES) {
                         $image_details = [
-                            'source_type'         => 'custom',
-                            'source_id'           => $random_term_id,
-                            'selected_identifiers'=> $selected_image_ids,
-                            'correct_identifiers' => array_slice($selected_image_ids, 0, SISC_IMAGES_IN_SEQUENCE),
+                            "source_type" => "custom",
+                            "source_id" => $random_term_id,
+                            "selected_identifiers" => $selected_image_ids,
+                            "correct_identifiers" => array_slice(
+                                $selected_image_ids,
+                                0,
+                                SISC_IMAGES_IN_SEQUENCE
+                            ),
                         ];
                     }
                 } else {
-                    error_log('[SISC] Custom source failed: No valid categories found. Attempting to fall back to predefined sets.');
+                    error_log(
+                        "[SISC] Custom source failed: No valid categories found. Attempting to fall back to predefined sets."
+                    );
                 }
             }
-            
+
             if (false === $image_details) {
                 $image_details = $this->_get_predefined_challenge_data();
             }
 
             if (false === $image_details) {
-                error_log('[SISC] FATAL: CAPTCHA generation failed. No valid image sources available (custom or predefined).');
+                error_log(
+                    "[SISC] FATAL: CAPTCHA generation failed. No valid image sources available (custom or predefined)."
+                );
                 return false;
             }
 
@@ -772,131 +792,221 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
             $temporal_id_map = [];
             $correct_temporal_sequence_map = [];
 
-            foreach ($image_details['selected_identifiers'] as $identifier) {
+            foreach ($image_details["selected_identifiers"] as $identifier) {
                 $temporal_id = bin2hex(random_bytes(8));
-                
-                if ('predefined' === $image_details['source_type']) {
+
+                if ("predefined" === $image_details["source_type"]) {
                     $filename = basename($identifier);
-                    $image_url = SISC_PREDEFINED_IMAGES_URL . $image_details['source_id'] . '/' . $filename;
-                    $alt_text = ucfirst(str_replace(['-', '_'], ' ', pathinfo($filename, PATHINFO_FILENAME)));
+                    $image_url =
+                        SISC_PREDEFINED_IMAGES_URL .
+                        $image_details["source_id"] .
+                        "/" .
+                        $filename;
+                    $alt_text = ucfirst(
+                        str_replace(
+                            ["-", "_"],
+                            " ",
+                            pathinfo($filename, PATHINFO_FILENAME)
+                        )
+                    );
                     $temporal_id_map[$temporal_id] = $filename;
                 } else {
-                    $image_url = wp_get_attachment_image_url($identifier, SISC_IMAGE_SIZE);
-                    $alt_text = get_post_meta($identifier, '_wp_attachment_image_alt', true) ?: get_the_title($identifier);
+                    $image_url = wp_get_attachment_image_url(
+                        $identifier,
+                        SISC_IMAGE_SIZE
+                    );
+                    $alt_text =
+                        get_post_meta(
+                            $identifier,
+                            "_wp_attachment_image_alt",
+                            true
+                        ) ?:
+                        get_the_title($identifier);
                     $temporal_id_map[$temporal_id] = $identifier;
                 }
-                
-                if (!$image_url) { continue; }
+
+                if (!$image_url) {
+                    continue;
+                }
 
                 $challenge_images[] = [
-                    'temp_id' => $temporal_id,
-                    'url'     => $image_url,
-                    'alt'     => $alt_text ?: __('CAPTCHA Image', 'secure-image-sequence-captcha'),
+                    "temp_id" => $temporal_id,
+                    "url" => $image_url,
+                    "alt" =>
+                        $alt_text ?:
+                        __("CAPTCHA Image", "secure-image-sequence-captcha"),
                 ];
-                
-                $correct_pos = array_search($identifier, $image_details['correct_identifiers']);
+
+                $correct_pos = array_search(
+                    $identifier,
+                    $image_details["correct_identifiers"]
+                );
                 if ($correct_pos !== false) {
                     $correct_temporal_sequence_map[$correct_pos] = $temporal_id;
                 }
             }
 
-            if ('predefined' === $image_details['source_type']) {
+            if ("predefined" === $image_details["source_type"]) {
                 $correct_image_titles = array_map(function ($filepath) {
-                    return ucfirst(str_replace(['-', '_'], ' ', pathinfo(basename($filepath), PATHINFO_FILENAME)));
-                }, $image_details['correct_identifiers']);
+                    return ucfirst(
+                        str_replace(
+                            ["-", "_"],
+                            " ",
+                            pathinfo(basename($filepath), PATHINFO_FILENAME)
+                        )
+                    );
+                }, $image_details["correct_identifiers"]);
             } else {
-                $correct_image_titles = array_map('get_the_title', $image_details['correct_identifiers']);
+                $correct_image_titles = array_map(
+                    "get_the_title",
+                    $image_details["correct_identifiers"]
+                );
             }
 
             ksort($correct_temporal_sequence_map);
-            $correct_temporal_sequence = array_values($correct_temporal_sequence_map);
+            $correct_temporal_sequence = array_values(
+                $correct_temporal_sequence_map
+            );
 
-            if (count($challenge_images) !== SISC_TOTAL_IMAGES || count($correct_temporal_sequence) !== SISC_IMAGES_IN_SEQUENCE) {
-                error_log('[SISC] Final consistency check failed. Aborting CAPTCHA generation.');
+            if (
+                count($challenge_images) !== SISC_TOTAL_IMAGES ||
+                count($correct_temporal_sequence) !== SISC_IMAGES_IN_SEQUENCE
+            ) {
+                error_log(
+                    "[SISC] Final consistency check failed. Aborting CAPTCHA generation."
+                );
                 return false;
             }
-            
+
             $valid_titles = array_filter($correct_image_titles);
             if (count($valid_titles) !== SISC_IMAGES_IN_SEQUENCE) {
-                $question = __('Click the images in the correct sequence.', 'secure-image-sequence-captcha');
+                $question = __(
+                    "Click the images in the correct sequence.",
+                    "secure-image-sequence-captcha"
+                );
             } else {
                 $question = sprintf(
-                    __('Click the images in this order: %s', 'secure-image-sequence-captcha'),
-                    implode(', ', $valid_titles)
+                    __(
+                        "Click the images in this order: %s",
+                        "secure-image-sequence-captcha"
+                    ),
+                    implode(", ", $valid_titles)
                 );
             }
 
             $transient_data = [
-                'correct_sequence' => $correct_temporal_sequence,
-                'temporal_map'     => $temporal_id_map,
-                'timestamp'        => time(),
-                'source_type'      => $image_details['source_type'],
-                'source_id'        => $image_details['source_id'],
+                "correct_sequence" => $correct_temporal_sequence,
+                "temporal_map" => $temporal_id_map,
+                "timestamp" => time(),
+                "source_type" => $image_details["source_type"],
+                "source_id" => $image_details["source_id"],
             ];
 
-            $transient_key = 'sisc_ch_' . bin2hex(random_bytes(12));
-            set_transient($transient_key, $transient_data, SISC_TRANSIENT_EXPIRATION);
-            
-            $nonce = wp_create_nonce(SISC_NONCE_ACTION . '_' . $transient_key);
+            $transient_key = "sisc_ch_" . bin2hex(random_bytes(12));
+            set_transient(
+                $transient_key,
+                $transient_data,
+                SISC_TRANSIENT_EXPIRATION
+            );
+
+            $nonce = wp_create_nonce(SISC_NONCE_ACTION . "_" . $transient_key);
             shuffle($challenge_images);
-            
+
             return [
-                'question'      => $question,
-                'images'        => $challenge_images,
-                'nonce'         => $nonce,
-                'transient_key' => $transient_key,
+                "question" => $question,
+                "images" => $challenge_images,
+                "nonce" => $nonce,
+                "transient_key" => $transient_key,
             ];
         }
 
-        private function _get_predefined_challenge_data() {
-            if (!is_dir(SISC_PREDEFINED_IMAGES_DIR) || !is_readable(SISC_PREDEFINED_IMAGES_DIR)) {
-                error_log('[SISC] Predefined directory error: ' . SISC_PREDEFINED_IMAGES_DIR);
+        private function _get_predefined_challenge_data()
+        {
+            if (
+                !is_dir(SISC_PREDEFINED_IMAGES_DIR) ||
+                !is_readable(SISC_PREDEFINED_IMAGES_DIR)
+            ) {
+                error_log(
+                    "[SISC] Predefined directory error: " .
+                        SISC_PREDEFINED_IMAGES_DIR
+                );
                 return false;
             }
 
             $available_sets_paths = [];
             $all_items = scandir(SISC_PREDEFINED_IMAGES_DIR);
-            
+
             if (false === $all_items) {
-                error_log('[SISC] Scandir error on: ' . SISC_PREDEFINED_IMAGES_DIR);
+                error_log(
+                    "[SISC] Scandir error on: " . SISC_PREDEFINED_IMAGES_DIR
+                );
                 return false;
             }
 
             foreach ($all_items as $item) {
-                if ($item === '.' || $item === '..' || strpos($item, '.') === 0) {
+                if (
+                    $item === "." ||
+                    $item === ".." ||
+                    strpos($item, ".") === 0
+                ) {
                     continue;
                 }
                 $potential_set_path = SISC_PREDEFINED_IMAGES_DIR . $item;
-                if (is_dir($potential_set_path) && is_readable($potential_set_path)) {
-                    $image_files_in_set = glob($potential_set_path . '/*.{jpg,jpeg,png,gif,webp}', GLOB_BRACE);
-                    if (!empty($image_files_in_set) && count($image_files_in_set) >= SISC_TOTAL_IMAGES) {
+                if (
+                    is_dir($potential_set_path) &&
+                    is_readable($potential_set_path)
+                ) {
+                    $image_files_in_set = glob(
+                        $potential_set_path . "/*.{jpg,jpeg,png,gif,webp}",
+                        GLOB_BRACE
+                    );
+                    if (
+                        !empty($image_files_in_set) &&
+                        count($image_files_in_set) >= SISC_TOTAL_IMAGES
+                    ) {
                         $available_sets_paths[] = $potential_set_path;
                     }
                 }
             }
 
             if (empty($available_sets_paths)) {
-                error_log('[SISC] Predefined source failed: No valid sets with enough images found.');
+                error_log(
+                    "[SISC] Predefined source failed: No valid sets with enough images found."
+                );
                 return false;
             }
 
-            $random_set_path = $available_sets_paths[array_rand($available_sets_paths)];
+            $random_set_path =
+                $available_sets_paths[array_rand($available_sets_paths)];
             $set_name = basename($random_set_path);
-            $image_files = glob($random_set_path . '/*.{jpg,jpeg,png,gif,webp}', GLOB_BRACE);
-            
+            $image_files = glob(
+                $random_set_path . "/*.{jpg,jpeg,png,gif,webp}",
+                GLOB_BRACE
+            );
+
             if (empty($image_files)) {
-                 error_log('[SISC] Glob error in predefined set: ' . $random_set_path);
+                error_log(
+                    "[SISC] Glob error in predefined set: " . $random_set_path
+                );
                 return false;
             }
 
             shuffle($image_files);
-            $selected_image_files = array_slice($image_files, 0, SISC_TOTAL_IMAGES);
+            $selected_image_files = array_slice(
+                $image_files,
+                0,
+                SISC_TOTAL_IMAGES
+            );
 
             return [
-                'source_type'         => 'predefined',
-                'source_id'           => $set_name,
-                'selected_identifiers'=> $selected_image_files,
-                'correct_identifiers' => array_slice($selected_image_files, 0, SISC_IMAGES_IN_SEQUENCE),
+                "source_type" => "predefined",
+                "source_id" => $set_name,
+                "selected_identifiers" => $selected_image_files,
+                "correct_identifiers" => array_slice(
+                    $selected_image_files,
+                    0,
+                    SISC_IMAGES_IN_SEQUENCE
+                ),
             ];
         }
         private function render_captcha_html(
