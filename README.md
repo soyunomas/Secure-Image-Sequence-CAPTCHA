@@ -117,9 +117,6 @@ Se requiere un mínimo de **6 imágenes** por categoría o conjunto. Esto permit
 
 ¡Las contribuciones son bienvenidas! Si tienes una solicitud de función, por favor abre un [issue](https://github.com/Soyunomas/Secure-Image-Sequence-CAPTCHA/issues). Para contribuir con código, por favor abre un [pull request](https://github.com/Soyunomas/Secure-Image-Sequence-CAPTCHA/pulls).
 
-### Política de Seguridad
-Nos tomamos la seguridad muy en serio. Si descubres una vulnerabilidad de seguridad, por favor **divúlgala de forma responsable** enviando un correo electrónico a `tu-email-privado-aqui@example.com`. Todas las vulnerabilidades de seguridad serán abordadas con prontitud. Te pedimos amablemente que no reveles el problema públicamente hasta que hayamos tenido la oportunidad de lanzar un parche.
-
 ---
 
 ## Changelog (Historial de Cambios)
