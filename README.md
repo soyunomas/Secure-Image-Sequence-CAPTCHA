@@ -90,18 +90,18 @@ Se requiere un mínimo de **6 imágenes** por categoría o conjunto. Esto permit
 <table>
   <tr>
     <td align="center">
-      <b>CAPTCHA y Protección contra Fuerza Bruta</b><br>
-      <img src="images/screenshot-1.png" alt="Página de ajustes mostrando las opciones de CAPTCHA y Lockdown" width="400">
+      <b>Ejemplo de protección CAPTCHA en login</b><br>
+      <img src="images/screenshot-1.png" alt="CAPTCHA en login" width="400">
     </td>
     <td align="center">
-      <b>Diagnóstico de IP y Fuentes de Imágenes</b><br>
-      <img src="images/screenshot-2.png" alt="Ajustes de fuente de imágenes y herramienta de diagnóstico de IP" width="400">
+      <b>CAPTCHA en comentarios</b><br>
+      <img src="images/screenshot-2.png" alt="CAPTCHA en comentarios" width="400">
     </td>
   </tr>
   <tr>
     <td align="center">
-      <b>Ejemplo en el Formulario de Inicio de Sesión</b><br>
-      <img src="images/screenshot-3.png" alt="El CAPTCHA funcionando en el formulario wp-login.php" width="400">
+      <b>Captura de pantalla de configuración</b><br>
+      <img src="images/screenshot-3.png" alt="Captura de pantalla de configuración" width="400">
     </td>
     <td align="center">
       <b>Gestión de Categorías CAPTCHA</b><br>
