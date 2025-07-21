@@ -124,7 +124,7 @@ Nos tomamos la seguridad muy en serio. Si descubres una vulnerabilidad de seguri
 
 ## Changelog (Historial de Cambios)
 
-### 1.5.0 (Lanzamiento de Seguridad Mayor - Actual y Recomendada)
+### 1.5.0 (Actual y Recomendada)
 *   **CARACTERÍSTICA DE SEGURIDAD MAYOR:** Reintroducida y mejorada la funcionalidad de **Login Lockdown** para proporcionar una protección robusta contra ataques de fuerza bruta.
 *   **FORTALECIMIENTO DE SEGURIDAD:** La lógica de detección de IP ha sido reescrita para prevenir el bypass del bloqueo mediante la falsificación de cabeceras HTTP (IP Spoofing), garantizando la protección detrás de proxies y CDNs.
 *   **FORTALECIMIENTO DE SEGURIDAD:** Las soluciones del CAPTCHA ahora se almacenan como hashes en la base de datos (`wp_hash`), eliminando el almacenamiento de la respuesta correcta en texto plano.
@@ -133,13 +133,43 @@ Nos tomamos la seguridad muy en serio. Si descubres una vulnerabilidad de seguri
 *   **MEJORA:** Añadida una rutina de limpieza completa en la desinstalación para eliminar los términos de la taxonomía y no dejar datos huérfanos.
 *   **MEJORA:** Añadidos archivos `index.php` en todos los directorios para prevenir el listado de directorios en servidores mal configurados.
 
-*(El historial de versiones anteriores 1.4.0 a 1.1.0 se mantiene igual que antes)*
-
 ### 1.4.0
 *   **Corrección de Estabilidad:** Solucionado un fallo que podía bloquear a los administradores fuera de su propio sitio si una categoría de imágenes personalizada no tenía el número mínimo de imágenes requerido.
-*   ... (resto del changelog de la 1.4.0)
+*   **Implementado Mecanismo "Fail-Safe":** Si el CAPTCHA no se puede generar por un error de configuración (ej., no hay ninguna categoría válida), el plugin ahora permitirá que los formularios (inicio de sesión, registro) se envíen, previniendo el bloqueo del sitio y priorizando el acceso del administrador.
+*   **Mejora de UX (Avisos Inteligentes):** El plugin ahora muestra avisos contextuales en la página de Ajustes: un error (rojo) si el CAPTCHA está inactivo por falta de imágenes, y una advertencia (amarillo) si algunas categorías están mal configuradas y están siendo ignoradas.
+*   **Mejora de UX (Guía Contextual):** Añadido un aviso informativo en la página "Medios -> Categorías CAPTCHA" para recordar al administrador el requisito mínimo de 6 imágenes.
+*   **Refactorización de la Lógica de Generación:** La selección de imágenes personalizadas ahora filtra proactivamente las categorías inválidas, asegurando que el CAPTCHA siempre use un conjunto de imágenes válido si existe alguno, mejorando la robustez general.
 
-...
+### 1.3.2
+*   Optimización: Estandarizado el tamaño de las imágenes predefinidas incluidas a 75x75px para consistencia y rendimiento.
+*   Mejora: Añadida nota en el readme sobre el tamaño máximo de visualización de 100x100px.
+
+### 1.3.1
+*   Corrección: Mostrar correctamente el número de imágenes asociadas en la columna "Image Count" en la pantalla de admin de Categorías CAPTCHA.
+*   Ajuste: Refinamientos menores de código.
+
+### 1.3.0
+*   Característica: Añadido soporte CAPTCHA para el formulario de Inicio de Sesión de WordPress.
+*   Característica: Añadido soporte CAPTCHA para el formulario de Registro de WordPress.
+*   Corrección: Implementada solución alternativa de redirección/transitorio para posible error fatal en fallo de envío de comentarios.
+*   Mejora: Lógica de carga de assets mejorada para frontend y pantallas de login/registro.
+*   Mejora: Añadidas clases CSS de contexto (`.sisc-context-*`) al contenedor CAPTCHA.
+
+### 1.2.1
+*   Corrección: Ajustado manejo de CSS usando `wp_add_inline_style` para dimensiones de imagen flexibles.
+*   Actualización: Cambiada dimensión máxima de imagen por defecto a 75px mediante constante.
+
+### 1.2.0
+*   Característica: Añadida opción para usar Conjuntos de Imágenes Predefinidos incluidos con el plugin (estructura `images/setname/`).
+*   Característica: Añadido ajuste "Fuente de Imágenes" (Personalizada vs. Predefinida).
+*   Mejora: Lógica mejorada para encontrar conjuntos de imágenes predefinidos.
+*   Mejora: Añadido soporte para imágenes `.webp` en conjuntos predefinidos.
+*   Corrección: Movido CSS inline a archivo separado y encolado correctamente.
+
+### 1.1.0
+*   Versión inicial estable candidata con protección para formulario de Comentarios.
+*   Implementada generación segura de CAPTCHA (IDs temporales, nonces, transitorios).
+*   Añadida página de Ajustes y Taxonomía Personalizada.
 
 ---
 
