@@ -3,7 +3,7 @@
  * Plugin Name:       Secure Image Sequence CAPTCHA
  * Plugin URI:        https://example.com/plugins/secure-image-sequence-captcha/
  * Description:       Protege formularios de Comentarios, Login y Registro con un CAPTCHA seguro basado en secuencias de imágenes.
- * Version:           1.4.1
+ * Version:           1.5.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Soyunomas
@@ -20,7 +20,8 @@ if (!defined("ABSPATH")) {
 }
 
 // --- 2. Definición de Constantes del Plugin ---
-define("SISC_VERSION", "1.4.1"); // Versión incrementada
+
+define("SISC_VERSION", "1.5.0"); // Versión incrementada
 define("SISC_PLUGIN_DIR", plugin_dir_path(__FILE__));
 define("SISC_PLUGIN_URL", plugin_dir_url(__FILE__));
 define("SISC_PLUGIN_BASENAME", plugin_basename(__FILE__));
@@ -40,6 +41,7 @@ define("SISC_PREDEFINED_IMAGES_URL", SISC_PLUGIN_URL . "images/");
 define("SISC_MAX_IMAGE_DIMENSION", 75);
 
 // --- 3. Clase Principal del Plugin ---
+
 if (!class_exists("Secure_Image_Sequence_Captcha")) {
     class Secure_Image_Sequence_Captcha
     {
@@ -55,6 +57,14 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
             );
             add_action("init", [$this, "load_textdomain"]);
             add_action("init", [$this, "register_custom_taxonomy"]);
+
+            // Hook para limpiar los intentos fallidos tras un login exitoso.
+            add_action(
+                "wp_login",
+                [$this, "clear_failed_attempts_on_success"],
+                10,
+                2
+            );
 
             if (is_admin()) {
                 add_action("admin_menu", [$this, "register_admin_menu"]);
@@ -136,6 +146,30 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                     3
                 );
             }
+
+            // --- INICIO: Hooks para Login Lockdown ---
+            if (!empty($this->options["enable_login_lockdown"])) {
+                // Se engancha ANTES de procesar credenciales para bloquear si la IP ya está vetada.
+                add_filter("authenticate", [$this, "check_ip_lockdown"], 20, 1);
+
+                // Se engancha cuando WordPress confirma un fallo de inicio de sesión.
+                add_action(
+                    "wp_login_failed",
+                    [$this, "record_failed_login_attempt"],
+                    10,
+                    1
+                );
+
+                // --- LÍNEA AÑADIDA PARA CORREGIR EL ERROR FATAL ---
+                // Se engancha cuando un usuario inicia sesión con éxito para limpiar el contador.
+                add_action(
+                    "wp_login",
+                    [$this, "clear_failed_attempts_on_success"],
+                    10,
+                    2
+                );
+            }
+            // --- FIN: Hooks para Login Lockdown ---
         }
         public static function get_instance()
         {
@@ -150,7 +184,13 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                 "enable_login" => 0,
                 "enable_register" => 0,
                 "enable_comments" => 0,
-                "image_source" => "custom",
+                "image_source" => "predefined",
+                // --- INICIO: Opciones de Lockdown ---
+                "enable_login_lockdown" => 0,
+                "login_lockdown_attempts" => 5,
+                "login_lockdown_duration" => 15,
+                "ip_source" => "remote_addr", // Opción por defecto segura
+                // --- FIN: Opciones de Lockdown ---
             ];
         }
         public function load_textdomain()
@@ -235,7 +275,7 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                 "show_admin_column" => true,
                 "query_var" => false,
                 "rewrite" => false,
-                "show_in_rest" => true,
+                "show_in_rest" => false,
                 "description" => __(
                     "Organize images for the Custom Image Sequence CAPTCHA. Each category requires a minimum of 6 images to be functional.",
                     "secure-image-sequence-captcha"
@@ -407,12 +447,15 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                 $this,
                 "sanitize_options",
             ]);
+
+            // --- Sección de Activación (Existente) ---
             add_settings_section(
                 "sisc_section_activation",
                 __("Enable CAPTCHA on Forms", "secure-image-sequence-captcha"),
                 [$this, "render_section_activation_cb"],
                 SISC_SETTINGS_SLUG
             );
+
             add_settings_field(
                 "sisc_field_enable_comments",
                 __("Comments Form", "secure-image-sequence-captcha"),
@@ -428,6 +471,7 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                     ),
                 ]
             );
+
             add_settings_field(
                 "sisc_field_enable_login",
                 __("Login Form", "secure-image-sequence-captcha"),
@@ -443,6 +487,7 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                     ),
                 ]
             );
+
             add_settings_field(
                 "sisc_field_enable_register",
                 __("Registration Form", "secure-image-sequence-captcha"),
@@ -458,6 +503,8 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                     ),
                 ]
             );
+
+            // --- Sección de Fuente de Imágenes (Existente) ---
             add_settings_section(
                 "sisc_section_image_source",
                 __(
@@ -467,6 +514,7 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                 [$this, "render_section_image_source_cb"],
                 SISC_SETTINGS_SLUG
             );
+
             add_settings_field(
                 "sisc_field_image_source",
                 __("Select Image Source", "secure-image-sequence-captcha"),
@@ -475,7 +523,132 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                 "sisc_section_image_source",
                 ["label_for" => "sisc_image_source"]
             );
+
+            // --- Sección Login Lockdown (Modificada) ---
+            add_settings_section(
+                "sisc_section_lockdown",
+                __(
+                    "Login Lockdown (Brute-Force Protection)",
+                    "secure-image-sequence-captcha"
+                ),
+                [$this, "render_section_lockdown_cb"],
+                SISC_SETTINGS_SLUG
+            );
+
+            add_settings_field(
+                "sisc_field_enable_login_lockdown",
+                __("Enable Lockdown", "secure-image-sequence-captcha"),
+                [$this, "render_field_checkbox_cb"],
+                SISC_SETTINGS_SLUG,
+                "sisc_section_lockdown",
+                [
+                    "label_for" => "sisc_enable_login_lockdown",
+                    "option_name" => "enable_login_lockdown",
+                    "description" => __(
+                        "Temporarily blocks an IP address after multiple failed login attempts.",
+                        "secure-image-sequence-captcha"
+                    ),
+                ]
+            );
+
+            add_settings_field(
+                "sisc_field_login_lockdown_attempts",
+                __(
+                    "Failed Attempts Threshold",
+                    "secure-image-sequence-captcha"
+                ),
+                [$this, "render_field_number_cb"],
+                SISC_SETTINGS_SLUG,
+                "sisc_section_lockdown",
+                [
+                    "label_for" => "sisc_login_lockdown_attempts",
+                    "option_name" => "login_lockdown_attempts",
+                    "description" => __(
+                        "Block an IP after this many failed attempts.",
+                        "secure-image-sequence-captcha"
+                    ),
+                    "min" => 2,
+                    "max" => 100,
+                ]
+            );
+
+            add_settings_field(
+                "sisc_field_login_lockdown_duration",
+                __("Lockdown Duration", "secure-image-sequence-captcha"),
+                [$this, "render_field_number_cb"],
+                SISC_SETTINGS_SLUG,
+                "sisc_section_lockdown",
+                [
+                    "label_for" => "sisc_login_lockdown_duration",
+                    "option_name" => "login_lockdown_duration",
+                    "description" => __(
+                        "Block the IP for this many minutes.",
+                        "secure-image-sequence-captcha"
+                    ),
+                    "min" => 1,
+                    "max" => 1440, // 24 horas
+                ]
+            );
+
+            // --- INICIO: Nuevo campo para Fuente de IP ---
+            add_settings_field(
+                "sisc_field_ip_source",
+                __("Client IP Source", "secure-image-sequence-captcha"),
+                [$this, "render_field_ip_source_cb"],
+                SISC_SETTINGS_SLUG,
+                "sisc_section_lockdown",
+                [
+                    "label_for" => "sisc_ip_source",
+                ]
+            );
+            // --- FIN: Nuevo campo para Fuente de IP ---
         }
+
+        public function render_section_lockdown_cb($args)
+        {
+            echo '<p id="' .
+                esc_attr($args["id"]) .
+                '-description">' .
+                esc_html__(
+                    "This feature enhances security by preventing brute-force attacks on the login form.",
+                    "secure-image-sequence-captcha"
+                ) .
+                "</p>";
+        }
+
+        public function render_field_number_cb($args)
+        {
+            $option_name = $args["option_name"];
+            $label_for = $args["label_for"];
+            $option_key = SISC_OPTIONS_NAME;
+            $current_value = isset($this->options[$option_name])
+                ? intval($this->options[$option_name])
+                : 0;
+            $description = isset($args["description"])
+                ? $args["description"]
+                : "";
+            $min = isset($args["min"]) ? intval($args["min"]) : 0;
+            $max = isset($args["max"]) ? intval($args["max"]) : 999;
+
+            echo '<input type="number" id="' .
+                esc_attr($label_for) .
+                '" name="' .
+                esc_attr($option_key . "[" . $option_name . "]") .
+                '" value="' .
+                esc_attr($current_value) .
+                '" min="' .
+                esc_attr($min) .
+                '" max="' .
+                esc_attr($max) .
+                '" class="small-text" />';
+
+            if (!empty($description)) {
+                echo '<p class="description">' .
+                    wp_kses_post($description) .
+                    "</p>";
+            }
+        }
+
         public function render_section_activation_cb($args)
         {
             echo '<p id="' .
@@ -629,6 +802,8 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
         {
             $sanitized_input = [];
             $defaults = $this->get_default_options();
+
+            // Opciones existentes
             $sanitized_input["enable_login"] =
                 isset($input["enable_login"]) && $input["enable_login"] == "1"
                     ? 1
@@ -648,6 +823,58 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                 in_array($input["image_source"], ["custom", "predefined"])
                     ? $input["image_source"]
                     : $defaults["image_source"];
+
+            $sanitized_input["enable_login_lockdown"] =
+                isset($input["enable_login_lockdown"]) &&
+                $input["enable_login_lockdown"] == "1"
+                    ? 1
+                    : 0;
+
+            if (isset($input["login_lockdown_attempts"])) {
+                $sanitized_input["login_lockdown_attempts"] = absint(
+                    $input["login_lockdown_attempts"]
+                );
+                if ($sanitized_input["login_lockdown_attempts"] < 2) {
+                    $sanitized_input["login_lockdown_attempts"] =
+                        $defaults["login_lockdown_attempts"];
+                }
+            } else {
+                $sanitized_input["login_lockdown_attempts"] =
+                    $defaults["login_lockdown_attempts"];
+            }
+
+            if (isset($input["login_lockdown_duration"])) {
+                $sanitized_input["login_lockdown_duration"] = absint(
+                    $input["login_lockdown_duration"]
+                );
+                if ($sanitized_input["login_lockdown_duration"] < 1) {
+                    $sanitized_input["login_lockdown_duration"] =
+                        $defaults["login_lockdown_duration"];
+                }
+            } else {
+                $sanitized_input["login_lockdown_duration"] =
+                    $defaults["login_lockdown_duration"];
+            }
+
+            // --- INICIO: Sanitización para la fuente de IP ---
+            $allowed_ip_sources = [
+                "remote_addr",
+                "cf_connecting_ip",
+                "x_forwarded_for",
+                "x_real_ip",
+            ];
+            if (
+                isset($input["ip_source"]) &&
+                in_array($input["ip_source"], $allowed_ip_sources, true)
+            ) {
+                $sanitized_input["ip_source"] = sanitize_key(
+                    $input["ip_source"]
+                );
+            } else {
+                $sanitized_input["ip_source"] = $defaults["ip_source"]; // Fallback seguro
+            }
+            // --- FIN: Sanitización para la fuente de IP ---
+
             $this->options = $sanitized_input;
             return $sanitized_input;
         }
@@ -1084,6 +1311,34 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
         // --- Métodos CAPTCHA: Display específico por formulario ---
         public function display_captcha_in_comments()
         {
+            // --- INICIO: VERIFICACIÓN DE BLOQUEO DE IP ---
+            if ($this->_is_ip_locked()) {
+                // Mandamiento de Seguridad: Saneamiento en cada salida (Output Escaping).
+                echo '<p class="sisc-error"><strong>' .
+                    esc_html__(
+                        "Access Denied:",
+                        "secure-image-sequence-captcha"
+                    ) .
+                    "</strong> " .
+                    esc_html__(
+                        "Too many failed attempts. Your IP is temporarily blocked.",
+                        "secure-image-sequence-captcha"
+                    ) .
+                    "</p>";
+                return;
+            }
+            // --- FIN: VERIFICACIÓN DE BLOQUEO DE IP ---
+
+            if ($this->_is_rate_limited()) {
+                echo '<p class="sisc-error"><em>' .
+                    esc_html__(
+                        "Too many requests. Please wait a moment.",
+                        "secure-image-sequence-captcha"
+                    ) .
+                    "</em></p>";
+                return;
+            }
+
             $challenge_data = $this->generate_captcha_challenge();
             if (!$challenge_data) {
                 echo '<p class="sisc-error"><em>' .
@@ -1100,6 +1355,39 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
 
         public function display_captcha_in_login()
         {
+            // --- INICIO: NUEVA VERIFICACIÓN DE BLOQUEO DE IP ---
+            // Mandamiento de Seguridad: Primero, verificamos el estado antes de gastar recursos.
+            // Si la IP ya está bloqueada, no tiene sentido generar un CAPTCHA.
+            if ($this->_is_ip_locked()) {
+                // Mandamiento de Seguridad: Saneamiento en cada salida (Output Escaping).
+                // Usamos esc_html__() para imprimir texto traducible de forma segura, previniendo ataques XSS.
+                echo '<p class="sisc-error login-error"><strong>' .
+                    esc_html__(
+                        "Access Denied:",
+                        "secure-image-sequence-captcha"
+                    ) .
+                    "</strong> " .
+                    esc_html__(
+                        "Too many failed login attempts. Your IP is temporarily blocked.",
+                        "secure-image-sequence-captcha"
+                    ) .
+                    "</p><br><br>";
+                // Detenemos la ejecución aquí para ahorrar recursos del servidor.
+                return;
+            }
+            // --- FIN: NUEVA VERIFICACIÓN DE BLOQUEO DE IP ---
+
+            // El resto del código solo se ejecuta si la IP NO está bloqueada.
+            if ($this->_is_rate_limited()) {
+                echo '<p class="sisc-error login-error"><em>' .
+                    esc_html__(
+                        "Too many requests. Please wait a moment.",
+                        "secure-image-sequence-captcha"
+                    ) .
+                    "</em></p>";
+                return;
+            }
+
             $challenge_data = $this->generate_captcha_challenge();
             if (!$challenge_data) {
                 echo '<p class="sisc-error login-error"><em>' .
@@ -1108,6 +1396,8 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                         "secure-image-sequence-captcha"
                     ) .
                     "</em></p>";
+                // Mandamiento de Seguridad: Desconfía de toda entrada (Input Validation).
+                // Aunque aquí la entrada es fija, usamos esc_attr() en el HTML para mantener la consistencia.
                 echo '<input type="hidden" name="sisc_transient_key" value="sisc_generation_failed">';
                 return;
             }
@@ -1118,6 +1408,34 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
 
         public function display_captcha_in_register()
         {
+            // --- INICIO: VERIFICACIÓN DE BLOQUEO DE IP ---
+            if ($this->_is_ip_locked()) {
+                // Mandamiento de Seguridad: Saneamiento en cada salida (Output Escaping).
+                echo '<p class="sisc-error register-error"><strong>' .
+                    esc_html__(
+                        "Access Denied:",
+                        "secure-image-sequence-captcha"
+                    ) .
+                    "</strong> " .
+                    esc_html__(
+                        "Too many failed attempts. Your IP is temporarily blocked.",
+                        "secure-image-sequence-captcha"
+                    ) .
+                    "</p>";
+                return;
+            }
+            // --- FIN: VERIFICACIÓN DE BLOQUEO DE IP ---
+
+            if ($this->_is_rate_limited()) {
+                echo '<p class="sisc-error register-error"><em>' .
+                    esc_html__(
+                        "Too many requests. Please wait a moment.",
+                        "secure-image-sequence-captcha"
+                    ) .
+                    "</em></p>";
+                return;
+            }
+
             $challenge_data = $this->generate_captcha_challenge();
             if (!$challenge_data) {
                 echo '<p class="sisc-error register-error"><em>' .
@@ -1132,6 +1450,498 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
             echo '<div style="margin-bottom: 15px;">';
             $this->render_captcha_html($challenge_data, "register");
             echo "</div>";
+        }
+
+        // --- INICIO: Funciones de Lógica de Login Lockdown ---
+
+        /**
+         * Obtiene la dirección IP real del usuario basándose en la configuración del plugin.
+         *
+         * @return string La IP del usuario o una cadena vacía si no es válida.
+         */
+        /**
+         * Obtiene la dirección IP real del usuario de forma segura.
+         *
+         * Solo confiará en una cabecera de proxy
+         * si la configuración del usuario lo indica Y si hay evidencia clara de un proxy
+         * (es decir, la IP de la cabecera del proxy es diferente de REMOTE_ADDR).
+         * Si estas condiciones no se cumplen, IGNORA la configuración del usuario y
+         * siempre devuelve REMOTE_ADDR como la única fuente de verdad.
+         *
+         * @return string La IP del usuario o una cadena vacía si no es válida.
+         */
+        private function get_user_ip()
+        {
+            $user_selected_source = isset($this->options["ip_source"])
+                ? $this->options["ip_source"]
+                : "remote_addr";
+
+            // Obtener la IP de REMOTE_ADDR es siempre el primer paso y nuestra base de seguridad.
+            $remote_addr_ip = "";
+            if (
+                isset($_SERVER["REMOTE_ADDR"]) &&
+                filter_var($_SERVER["REMOTE_ADDR"], FILTER_VALIDATE_IP)
+            ) {
+                $remote_addr_ip = sanitize_text_field(
+                    wp_unslash($_SERVER["REMOTE_ADDR"])
+                );
+            }
+
+            // Si el usuario no ha seleccionado una cabecera de proxy, el trabajo termina aquí.
+            if ("remote_addr" === $user_selected_source) {
+                return $remote_addr_ip;
+            }
+
+            // El usuario ha seleccionado una cabecera de proxy. Ahora debemos verificarla.
+            $header_to_check = "";
+            switch ($user_selected_source) {
+                case "cf_connecting_ip":
+                    $header_to_check = "HTTP_CF_CONNECTING_IP";
+                    break;
+                case "x_forwarded_for":
+                    $header_to_check = "HTTP_X_FORWARDED_FOR";
+                    break;
+                case "x_real_ip":
+                    $header_to_check = "HTTP_X_REAL_IP";
+                    break;
+            }
+
+            if (empty($header_to_check) || !isset($_SERVER[$header_to_check])) {
+                // La cabecera seleccionada no existe. Volvemos a la opción segura.
+                return $remote_addr_ip;
+            }
+
+            // Extraemos y validamos la IP de la cabecera del proxy.
+            $proxy_header_ip = "";
+            $raw_ip = sanitize_text_field(
+                wp_unslash($_SERVER[$header_to_check])
+            );
+            $ip_parts = explode(",", $raw_ip);
+            $candidate_ip = trim($ip_parts[0]);
+
+            if (filter_var($candidate_ip, FILTER_VALIDATE_IP)) {
+                $proxy_header_ip = $candidate_ip;
+            }
+
+            // Solo aceptamos la IP del proxy si es válida Y si es diferente de REMOTE_ADDR.
+            // Esta diferencia es la evidencia de que estamos realmente detrás de un proxy.
+            // Si son iguales, o si alguna es inválida, significa que la cabecera puede haber sido
+            // falsificada por el cliente, por lo que la ignoramos por seguridad.
+            if (
+                $proxy_header_ip &&
+                $remote_addr_ip &&
+                $proxy_header_ip !== $remote_addr_ip
+            ) {
+                return $proxy_header_ip;
+            }
+
+            // Si no pasamos la verificación de seguridad, siempre volvemos a la IP de la conexión directa.
+            return $remote_addr_ip;
+        }
+
+        /**
+         * Verifica si una IP ha excedido el límite de generación de CAPTCHA.
+         *
+         * @return bool True si está limitado, false en caso contrario.
+         */
+        private function _is_rate_limited()
+        {
+            $ip = $this->get_user_ip();
+            if (empty($ip)) {
+                return false; // No podemos limitar sin una IP.
+            }
+
+            $rate_limit_key = "sisc_gen_limit_" . md5($ip);
+            $attempts = (int) get_transient($rate_limit_key);
+            $limit = 15; // Límite: 15 generaciones por minuto por IP.
+
+            if ($attempts >= $limit) {
+                // Registrar solo si es la primera vez que se excede para no llenar el log.
+                if ($attempts === $limit) {
+                    error_log(
+                        "[SISC] Rate limit of {$limit}/min exceeded for IP: " .
+                            $ip
+                    );
+                    // Se establece un transitorio más largo para el estado "excedido".
+                    set_transient(
+                        $rate_limit_key,
+                        $attempts + 1,
+                        5 * MINUTE_IN_SECONDS
+                    );
+                }
+                return true;
+            }
+
+            set_transient($rate_limit_key, $attempts + 1, MINUTE_IN_SECONDS);
+            return false;
+        }
+
+        /**
+         * Verifica si la IP del usuario actual está bloqueada. Se engancha en 'authenticate'.
+         *
+         * @param WP_User|WP_Error|null $user
+         * @return WP_User|WP_Error|null
+         */
+        public function check_ip_lockdown($user)
+        {
+            $ip = $this->get_user_ip();
+            if (empty($ip)) {
+                return $user;
+            }
+            $lock_transient_key = "sisc_ip_lock_" . md5($ip);
+            if (get_transient($lock_transient_key)) {
+                return new WP_Error(
+                    "sisc_ip_locked",
+                    "<strong>" .
+                        esc_html__("ERROR:", "secure-image-sequence-captcha") .
+                        "</strong> " .
+                        esc_html__(
+                            "Too many failed login attempts. Please try again later.",
+                            "secure-image-sequence-captcha"
+                        )
+                );
+            }
+            return $user;
+        }
+
+        /**
+         * Registra un intento de inicio de sesión fallido. Se engancha en 'wp_login_failed'.
+         *
+         * @param string $username El nombre de usuario que falló.
+         */
+        /**
+         * Registra un intento fallido desde cualquier fuente (login, CAPTCHA).
+         * Esta es la función central de la lógica de lockdown.
+         *
+         * @since 1.4.3
+         */
+        private function _record_failed_attempt()
+        {
+            // Mandamiento de Seguridad: La lógica solo se ejecuta si la función está habilitada.
+            if (empty($this->options["enable_login_lockdown"])) {
+                return;
+            }
+
+            $ip = $this->get_user_ip();
+            if (empty($ip)) {
+                return; // No podemos bloquear sin una IP.
+            }
+
+            // Usamos absint() para asegurar que los valores de las opciones son enteros.
+            $defaults = $this->get_default_options();
+            $attempts_limit = isset($this->options["login_lockdown_attempts"])
+                ? absint($this->options["login_lockdown_attempts"])
+                : $defaults["login_lockdown_attempts"];
+            $duration_minutes = isset($this->options["login_lockdown_duration"])
+                ? absint($this->options["login_lockdown_duration"])
+                : $defaults["login_lockdown_duration"];
+
+            $count_transient_key = "sisc_failed_count_" . md5($ip);
+            $failed_attempts = get_transient($count_transient_key);
+            $failed_attempts = $failed_attempts
+                ? absint($failed_attempts) + 1
+                : 1;
+
+            if ($failed_attempts >= $attempts_limit) {
+                // Se ha alcanzado el umbral. Bloqueamos la IP.
+                $lock_transient_key = "sisc_ip_lock_" . md5($ip);
+                // Mandamiento de Seguridad: Usamos las APIs de WordPress (set_transient) para la persistencia de datos.
+                set_transient(
+                    $lock_transient_key,
+                    true,
+                    $duration_minutes * MINUTE_IN_SECONDS
+                );
+                delete_transient($count_transient_key); // Limpiamos el contador una vez bloqueado.
+            } else {
+                // Aún no se ha alcanzado el umbral, solo incrementamos el contador.
+                set_transient(
+                    $count_transient_key,
+                    $failed_attempts,
+                    $duration_minutes * MINUTE_IN_SECONDS
+                );
+            }
+        }
+
+        /**
+         * Registra un intento de inicio de sesión fallido. Se engancha en 'wp_login_failed'.
+         *
+         * @param string $username El nombre de usuario que falló.
+         */
+        public function record_failed_login_attempt($username)
+        {
+            // Simplemente llama a la nueva función centralizada.
+            $this->_record_failed_attempt();
+        }
+
+        /**
+         * Limpia los intentos de inicio de sesión fallidos para una IP tras un inicio de sesión exitoso.
+         * Se engancha en 'wp_login'.
+         *
+         * @param string  $user_login El login del usuario.
+         * @param WP_User $user       El objeto del usuario.
+         */
+        public function clear_failed_attempts_on_success($user_login, $user)
+        {
+            $ip = $this->get_user_ip();
+            if (!empty($ip)) {
+                $count_transient_key = "sisc_failed_count_" . md5($ip);
+                delete_transient($count_transient_key);
+            }
+        }
+        // --- FIN: Funciones de Lógica de Login Lockdown ---
+
+        /**
+         * Renderiza el campo de selección para la fuente de la IP, incluyendo la herramienta de diagnóstico.
+         *
+         * @param array $args Argumentos del campo.
+         */
+        /**
+         * Renderiza el campo de selección para la fuente de la IP, incluyendo la herramienta de diagnóstico.
+         * ESTA FUNCIÓN SE MANTIENE INTACTA, ya que su única labor es llamar a las funciones de diagnóstico y renderizado,
+         * las cuales han sido mejoradas.
+         *
+         * @param array $args Argumentos del campo.
+         */
+        public function render_field_ip_source_cb($args)
+        {
+            $option_name = "ip_source";
+            $label_for = $args["label_for"];
+            $option_key = SISC_OPTIONS_NAME;
+            $current_value = isset($this->options[$option_name])
+                ? $this->options[$option_name]
+                : "remote_addr";
+
+            // 1. OBTENER DATOS DE DIAGNÓSTICO
+            $detected_ips = $this->_get_ip_diagnostic_data();
+            $recommendation = $this->_generate_ip_source_recommendation(
+                $detected_ips,
+                $current_value
+            );
+            // 2. MOSTRAR LA HERRAMIENTA DE DIAGNÓSTICO
+            ?>
+    <div class="sisc-diag-box" style="border: 1px solid #c3c4c7; padding: 15px; margin-bottom: 20px; background-color: #f9f9f9; box-shadow: 0 1px 1px rgba(0,0,0,.04);">
+        <h4 style="margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 8px;"><?php esc_html_e(
+            "IP Detection Diagnostics",
+            "secure-image-sequence-captcha"
+        ); ?></h4>
+        <p class="description"><?php esc_html_e(
+            "Use this tool to select the correct option. Your current IP, as seen by the server from different sources, is:",
+            "secure-image-sequence-captcha"
+        ); ?></p>
+        <ul style="list-style: none; margin-left: 0; padding-left: 0;">
+            <li style="margin-bottom: 5px;"><strong>REMOTE_ADDR:</strong> <code style="background: #eee; padding: 2px 5px;"><?php echo esc_html(
+                $detected_ips["remote_addr"] ??
+                    __("Not detected", "secure-image-sequence-captcha")
+            ); ?></code></li>
+            <li style="margin-bottom: 5px;"><strong>HTTP_CF_CONNECTING_IP:</strong> <code style="background: #eee; padding: 2px 5px;"><?php echo esc_html(
+                $detected_ips["cf_connecting_ip"] ??
+                    __("Not detected", "secure-image-sequence-captcha")
+            ); ?></code></li>
+            <li style="margin-bottom: 5px;"><strong>HTTP_X_FORWARDED_FOR:</strong> <code style="background: #eee; padding: 2px 5px;"><?php echo esc_html(
+                $detected_ips["x_forwarded_for"] ??
+                    __("Not detected", "secure-image-sequence-captcha")
+            ); ?></code></li>
+            <li style="margin-bottom: 5px;"><strong>HTTP_X_REAL_IP:</strong> <code style="background: #eee; padding: 2px 5px;"><?php echo esc_html(
+                $detected_ips["x_real_ip"] ??
+                    __("Not detected", "secure-image-sequence-captcha")
+            ); ?></code></li>
+        </ul>
+        <div class="notice notice-<?php echo esc_attr(
+            $recommendation["type"]
+        ); ?> inline" style="margin: 10px 0 0 0;">
+            <p><?php echo wp_kses_post($recommendation["message"]); ?></p>
+        </div>
+    </div>
+    <?php
+    // 3. RENDERIZAR EL MENÚ DESPLEGABLE
+    $ip_sources = [
+        "remote_addr" => __(
+            "Standard (REMOTE_ADDR)",
+            "secure-image-sequence-captcha"
+        ),
+        "cf_connecting_ip" => __(
+            "Cloudflare (HTTP_CF_CONNECTING_IP)",
+            "secure-image-sequence-captcha"
+        ),
+        "x_forwarded_for" => __(
+            "Reverse Proxy (HTTP_X_FORWARDED_FOR)",
+            "secure-image-sequence-captcha"
+        ),
+        "x_real_ip" => __(
+            "Reverse Proxy (HTTP_X_REAL_IP)",
+            "secure-image-sequence-captcha"
+        ),
+    ];
+
+    echo '<select id="' .
+        esc_attr($label_for) .
+        '" name="' .
+        esc_attr($option_key . "[" . $option_name . "]") .
+        '">';
+    foreach ($ip_sources as $value => $label) {
+        echo '<option value="' .
+            esc_attr($value) .
+            '" ' .
+            selected($current_value, $value, false) .
+            ">" .
+            esc_html($label) .
+            "</option>";
+    }
+    echo "</select>";
+        }
+        /**
+         * Recopila y valida las IPs del visitante desde varias fuentes de servidor.
+         *
+         * @return array Un array con las IPs detectadas. null si no se detecta o no es válida.
+         */
+        private function _get_ip_diagnostic_data()
+        {
+            $headers_to_check = [
+                "remote_addr" => "REMOTE_ADDR",
+                "cf_connecting_ip" => "HTTP_CF_CONNECTING_IP",
+                "x_forwarded_for" => "HTTP_X_FORWARDED_FOR",
+                "x_real_ip" => "HTTP_X_REAL_IP",
+            ];
+
+            $detected_ips = [];
+
+            foreach ($headers_to_check as $key => $server_key) {
+                $ip_address = null;
+                if (isset($_SERVER[$server_key])) {
+                    $raw_ip = sanitize_text_field(
+                        wp_unslash($_SERVER[$server_key])
+                    );
+                    $ip_parts = explode(",", $raw_ip);
+                    $candidate_ip = trim($ip_parts[0]);
+                    if (filter_var($candidate_ip, FILTER_VALIDATE_IP)) {
+                        $ip_address = $candidate_ip;
+                    }
+                }
+                $detected_ips[$key] = $ip_address;
+            }
+
+            return $detected_ips;
+        }
+
+        /**
+         * Analiza las IPs detectadas y genera una recomendación de seguridad inteligente y útil.
+         *
+         * @param array $detected_ips IPs obtenidas de _get_ip_diagnostic_data().
+         * @param string $current_setting La opción de fuente de IP actualmente guardada.
+         * @return array Un array con el mensaje de recomendación y el tipo de aviso ('success', 'warning', 'info').
+         */
+        private function _generate_ip_source_recommendation(
+            $detected_ips,
+            $current_setting
+        ) {
+            $remote_addr = $detected_ips["remote_addr"];
+            $proxy_headers_in_use = [
+                "cf_connecting_ip" => $detected_ips["cf_connecting_ip"],
+                "x_forwarded_for" => $detected_ips["x_forwarded_for"],
+                "x_real_ip" => $detected_ips["x_real_ip"],
+            ];
+
+            // Escenario 1: Estamos detrás de un proxy.
+            // La evidencia es que REMOTE_ADDR existe, una cabecera de proxy existe, y son diferentes.
+            $real_ip_from_proxy = null;
+            $recommended_key = null;
+            $recommended_name = "";
+
+            foreach ($proxy_headers_in_use as $key => $ip) {
+                if ($ip && $remote_addr && $ip !== $remote_addr) {
+                    $real_ip_from_proxy = $ip; // Encontramos la IP real del visitante.
+                    $recommended_key = $key;
+                    break;
+                }
+            }
+
+            if ($recommended_key) {
+                $source_names = [
+                    "cf_connecting_ip" => "Cloudflare (HTTP_CF_CONNECTING_IP)",
+                    "x_forwarded_for" => "Reverse Proxy (HTTP_X_FORWARDED_FOR)",
+                    "x_real_ip" => "Reverse Proxy (HTTP_X_REAL_IP)",
+                ];
+                $recommended_name = $source_names[$recommended_key];
+
+                if ($current_setting === $recommended_key) {
+                    return [
+                        "type" => "success",
+                        "message" =>
+                            "<strong>" .
+                            esc_html__(
+                                "Configuration Correct.",
+                                "secure-image-sequence-captcha"
+                            ) .
+                            "</strong> " .
+                            esc_html__(
+                                "Your setting matches our recommendation for your proxy environment.",
+                                "secure-image-sequence-captcha"
+                            ),
+                    ];
+                } else {
+                    return [
+                        "type" => "warning",
+                        "message" => sprintf(
+                            '<strong>%1$s</strong> %2$s <strong>"%3$s"</strong>. %4$s',
+                            esc_html__(
+                                "Action Required!",
+                                "secure-image-sequence-captcha"
+                            ),
+                            esc_html__(
+                                "We detect a proxy. For the security lockdown to work, please select",
+                                "secure-image-sequence-captcha"
+                            ),
+                            esc_html($recommended_name),
+                            esc_html__(
+                                "Your current selection is not optimal.",
+                                "secure-image-sequence-captcha"
+                            )
+                        ),
+                    ];
+                }
+            }
+
+            // Escenario 2: No parece que estemos detrás de un proxy.
+            // La opción correcta DEBE ser 'remote_addr'.
+            if ($current_setting === "remote_addr") {
+                return [
+                    "type" => "success",
+                    "message" =>
+                        "<strong>" .
+                        esc_html__(
+                            "Configuration Correct.",
+                            "secure-image-sequence-captcha"
+                        ) .
+                        "</strong> " .
+                        esc_html__(
+                            "You are using the standard and most secure setting.",
+                            "secure-image-sequence-captcha"
+                        ),
+                ];
+            } else {
+                return [
+                    "type" => "info",
+                    "message" => sprintf(
+                        '<strong>%1$s</strong> %2$s <strong>"%3$s"</strong>. %4$s',
+                        esc_html__(
+                            "Recommendation:",
+                            "secure-image-sequence-captcha"
+                        ),
+                        esc_html__(
+                            "We do not detect a proxy. The most secure setting is",
+                            "secure-image-sequence-captcha"
+                        ),
+                        esc_html__(
+                            "Standard (REMOTE_ADDR)",
+                            "secure-image-sequence-captcha"
+                        ),
+                        esc_html__(
+                            "Your current selection might not work as expected.",
+                            "secure-image-sequence-captcha"
+                        )
+                    ),
+                ];
+            }
         }
 
         // --- Métodos CAPTCHA: Validación ---
@@ -1227,12 +2037,33 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
             return true;
         }
 
+        /**
+         * Valida el CAPTCHA para el formulario de comentarios.
+         * Si la validación falla, registra el intento fallido y redirige al usuario
+         * con un mensaje de error, preservando los datos del comentario.
+         *
+         * @param array $commentdata Datos del comentario que se están procesando.
+         * @return array|void Los datos del comentario si la validación es exitosa. Llama a wp_die() o wp_safe_redirect() en caso de error.
+         */
         public function validate_comment_captcha($commentdata)
         {
+            // 1. Si el CAPTCHA en comentarios no está habilitado, no hacer nada.
             if (empty($this->options["enable_comments"])) {
                 return $commentdata;
             }
 
+            // 2. Mejora: Por defecto, no mostrar CAPTCHA a usuarios conectados.
+            // Esto se puede anular con un filtro si el administrador del sitio lo desea.
+            // Mandamiento de Seguridad: Verificar permisos y contexto. Un usuario logueado es generalmente más confiable.
+            if (
+                is_user_logged_in() &&
+                !apply_filters("sisc_show_for_logged_in_users_comments", true)
+            ) {
+                return $commentdata;
+            }
+
+            // 3. Defensa contra la manipulación del formulario. Si el campo clave del CAPTCHA no se envió,
+            // es una señal de manipulación. Detenemos la ejecución de forma abrupta.
             if (!isset($_POST["sisc_transient_key"])) {
                 wp_die(
                     "<strong>" .
@@ -1253,12 +2084,21 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                 );
             }
 
+            // 4. Realizar la validación del CAPTCHA.
             $validation_result = $this->perform_captcha_validation();
 
+            // 5. Si la validación falla...
             if (is_wp_error($validation_result)) {
+                // --- ¡ACCIÓN CLAVE DE SEGURIDAD! ---
+                // Registramos este intento fallido en nuestro sistema de bloqueo de IP.
+                $this->_record_failed_attempt();
+                // --- FIN DE LA ACCIÓN ---
+
                 $error_code = $validation_result->get_error_code();
                 $error_message = $validation_result->get_error_message();
 
+                // 6. Para mejorar la UX, preservamos los datos del comentario en un transitorio.
+                // Mandamiento de Seguridad: Desconfía de toda entrada. Aunque vamos a preservar, no ejecutamos nada con estos datos.
                 $transient_key =
                     "sisc_comm_err_" . md5(uniqid(wp_rand(), true));
                 $comment_data_to_preserve = [
@@ -1290,10 +2130,28 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                     SISC_ERROR_TRANSIENT_EXPIRATION
                 );
 
-                $redirect_url = isset($commentdata["comment_post_ID"])
-                    ? get_permalink($commentdata["comment_post_ID"])
-                    : wp_get_referer();
-                if (!$redirect_url) {
+                // 7. Construimos una URL de redirección segura para devolver al usuario al post.
+                $post_id_to_check = isset($commentdata["comment_post_ID"])
+                    ? (int) $commentdata["comment_post_ID"]
+                    : 0;
+                $redirect_url = "";
+                $is_permalink_redirect = false;
+
+                if ($post_id_to_check > 0) {
+                    $post_status = get_post_status($post_id_to_check);
+                    if (
+                        $post_status === "publish" &&
+                        comments_open($post_id_to_check)
+                    ) {
+                        $redirect_url = get_permalink($post_id_to_check);
+                        if ($redirect_url) {
+                            $is_permalink_redirect = true;
+                        }
+                    }
+                }
+
+                // Fallback seguro si no se pudo obtener la URL del post.
+                if (empty($redirect_url)) {
                     $redirect_url = home_url("/");
                 }
 
@@ -1302,13 +2160,49 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                     $transient_key,
                     $redirect_url
                 );
-                $redirect_url .= "#commentform";
 
+                // Añadimos el ancla solo si estamos seguros de que redirigimos al post original.
+                if ($is_permalink_redirect) {
+                    $redirect_url .= "#commentform";
+                }
+
+                // Mandamiento de Seguridad: Usar las APIs de WordPress. wp_safe_redirect es la forma segura de redirigir.
                 wp_safe_redirect($redirect_url);
                 exit();
             }
 
+            // 8. Si todo es correcto, devolvemos los datos del comentario para que WordPress continúe.
             return $commentdata;
+        }
+
+        /**
+         * Verifica si la IP del usuario actual está bloqueada por el lockdown.
+         * Es una función auxiliar reutilizable.
+         *
+         * @return bool True si la IP está bloqueada, false en caso contrario.
+         */
+        private function _is_ip_locked()
+        {
+            // Esta comprobación solo es relevante si el lockdown está activado.
+            if (empty($this->options["enable_login_lockdown"])) {
+                return false;
+            }
+
+            // Obtenemos la IP de forma segura usando el método existente.
+            $ip = $this->get_user_ip();
+            if (empty($ip)) {
+                // No podemos determinar el estado sin una IP.
+                return false;
+            }
+
+            // Construimos la clave del transitorio de bloqueo, igual que en check_ip_lockdown.
+            $lock_transient_key = "sisc_ip_lock_" . md5($ip);
+
+            // get_transient() devuelve 'false' si el transitorio no existe o ha expirado.
+            // Si devuelve cualquier otro valor, la IP está activamente bloqueada.
+            // Mandamiento de Seguridad: Usamos las APIs de WordPress (get_transient) para interactuar
+            // con la base de datos de forma segura.
+            return (bool) get_transient($lock_transient_key);
         }
         public function display_transient_comment_error()
         {
@@ -1331,13 +2225,25 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
 
         public function validate_login_captcha($user, $username, $password)
         {
+            // Mandamiento: Verificar Permisos (en este caso, si la función está activada).
             if (empty($this->options["enable_login"])) {
                 return $user;
             }
 
+            // Verificamos si se está produciendo un envío de formulario real que incluya nuestro CAPTCHA.
+            // Si el campo 'sisc_transient_key' no está en la solicitud POST, significa que no hay
+            // nada que validar (p. ej., es una carga de página inicial - GET).
+            // En ese caso, devolvemos el objeto $user sin tocar para permitir que WordPress continúe.
+            if (!isset($_POST["sisc_transient_key"])) {
+                return $user;
+            }
+            // --- FIN DE LA MITIGACIÓN ---
+
             $validation_result = $this->perform_captcha_validation();
 
             if (is_wp_error($validation_result)) {
+                $this->_record_failed_attempt();
+
                 $wp_error = new WP_Error();
                 $wp_error->add(
                     $validation_result->get_error_code(),
@@ -1353,12 +2259,19 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
             $sanitized_user_login,
             $user_email
         ) {
+            // Mandamiento: Verificar si la función está activada.
             if (empty($this->options["enable_register"])) {
                 return $errors;
             }
 
             $validation_result = $this->perform_captcha_validation();
             if (is_wp_error($validation_result)) {
+                // Registramos el intento fallido para proteger contra el spam de registro
+                // y los ataques de enumeración de usuarios.
+                $this->_record_failed_attempt();
+
+                // Mandamiento: Usa las APIs de WordPress.
+                // Añadimos el error al objeto $errors estándar de WordPress.
                 $errors->add(
                     $validation_result->get_error_code(),
                     $validation_result->get_error_message()
