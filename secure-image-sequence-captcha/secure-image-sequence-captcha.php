@@ -58,6 +58,10 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
             add_action("init", [$this, "load_textdomain"]);
             add_action("init", [$this, "register_custom_taxonomy"]);
 
+            // --- INICIO CORRECCIÓN XML-RPC: Hook de bloqueo temprano para XML-RPC ---
+            add_action('init', [$this, '_block_xmlrpc_if_locked']);
+            // --- FIN CORRECCIÓN XML-RPC ---
+
             // Hook para limpiar los intentos fallidos tras un login exitoso.
             add_action(
                 "wp_login",
@@ -160,7 +164,10 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                     1
                 );
 
-                // --- LÍNEA AÑADIDA PARA CORREGIR EL ERROR FATAL ---
+                // --- INICIO CORRECCIÓN XML-RPC: Registrar fallos de login en XML-RPC ---
+                add_action('xmlrpc_login_error', [$this, '_record_failed_attempt']);
+                // --- FIN CORRECCIÓN XML-RPC ---
+
                 // Se engancha cuando un usuario inicia sesión con éxito para limpiar el contador.
                 add_action(
                     "wp_login",
@@ -171,6 +178,27 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
             }
             // --- FIN: Hooks para Login Lockdown ---
         }
+        
+        // --- INICIO CORRECCIÓN XML-RPC: Nueva función para bloquear XML-RPC si la IP está vetada ---
+        /**
+         * Bloquea el acceso a XML-RPC si la IP del solicitante está actualmente bloqueada.
+         * Se engancha en 'init' para ejecutarse temprano en las peticiones XML-RPC.
+         */
+        public function _block_xmlrpc_if_locked() {
+            // Solo actuar en peticiones XML-RPC y si el lockdown está activo
+            if ( defined('XMLRPC_REQUEST') && XMLRPC_REQUEST && !empty($this->options['enable_login_lockdown']) ) {
+                if ( $this->_is_ip_locked() ) {
+                    // Cargar la librería necesaria para crear un error XML-RPC
+                    include_once( ABSPATH . WPINC . '/class-IXR.php' );
+                    $error = new IXR_Error( 403, __( 'Your IP address has been temporarily blocked due to too many failed login attempts.', 'secure-image-sequence-captcha' ) );
+                    
+                    // Detener la ejecución y enviar una respuesta de error XML-RPC formateada correctamente
+                    wp_die( $error->getXml(), '', array('response' => 403) );
+                }
+            }
+        }
+        // --- FIN CORRECCIÓN XML-RPC ---
+
         public static function get_instance()
         {
             if (null === self::$instance) {
@@ -1120,14 +1148,20 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                     implode(", ", $valid_titles)
                 );
             }
+            
+            // --- INICIO CORRECCIÓN: FORTALECIMIENTO DE SEGURIDAD (SOLUCIONES HASHEADAS) ---
+            // Se hashea la secuencia correcta antes de guardarla en el transitorio.
+            $correct_sequence_string = implode(",", $correct_temporal_sequence);
+            $hashed_sequence = wp_hash_password($correct_sequence_string);
 
             $transient_data = [
-                "correct_sequence" => $correct_temporal_sequence,
+                "correct_sequence_hash" => $hashed_sequence, // Guardamos el hash, no el texto plano
                 "temporal_map" => $temporal_id_map,
                 "timestamp" => time(),
                 "source_type" => $image_details["source_type"],
                 "source_id" => $image_details["source_id"],
             ];
+            // --- FIN CORRECCIÓN ---
 
             $transient_key = "sisc_ch_" . bin2hex(random_bytes(12));
             set_transient(
@@ -2003,12 +2037,15 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                 );
             }
             $transient_data = get_transient($transient_key);
-            delete_transient($transient_key);
+
+            // --- INICIO CORRECCIÓN: MITIGACIÓN DE DoS ---
+            // Se comprueba la validez del transitorio ANTES de borrarlo.
             if (
                 false === $transient_data ||
                 !is_array($transient_data) ||
-                !isset($transient_data["correct_sequence"])
+                !isset($transient_data["correct_sequence_hash"]) // Verificamos el hash
             ) {
+            // --- FIN CORRECCIÓN ---
                 error_log(
                     "[SISC Validation] Transient invalid/expired for key: " .
                         $transient_key
@@ -2021,11 +2058,14 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                     )
                 );
             }
-            $correct_sequence = $transient_data["correct_sequence"];
-            $user_sequence_array = !empty($user_sequence_raw)
-                ? explode(",", $user_sequence_raw)
-                : [];
-            if ($user_sequence_array !== $correct_sequence) {
+
+            // --- INICIO CORRECCIÓN: FORTALECIMIENTO DE SEGURIDAD (COMPARACIÓN DE HASH) ---
+            // Se utiliza wp_check_password para una comparación segura en tiempo constante.
+            $correct_sequence_hash = $transient_data["correct_sequence_hash"];
+            $is_correct = wp_check_password($user_sequence_raw, $correct_sequence_hash);
+
+            if (!$is_correct) {
+            // --- FIN CORRECCIÓN ---
                 return new WP_Error(
                     "sisc_incorrect_sequence",
                     __(
@@ -2034,6 +2074,12 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
                     )
                 );
             }
+
+            // --- INICIO CORRECCIÓN: MITIGACIÓN DE DoS ---
+            // El transitorio solo se elimina DESPUÉS de una validación exitosa.
+            delete_transient($transient_key);
+            // --- FIN CORRECCIÓN ---
+
             return true;
         }
 
@@ -2225,20 +2271,30 @@ if (!class_exists("Secure_Image_Sequence_Captcha")) {
 
         public function validate_login_captcha($user, $username, $password)
         {
-            // Mandamiento: Verificar Permisos (en este caso, si la función está activada).
             if (empty($this->options["enable_login"])) {
                 return $user;
             }
 
-            // Verificamos si se está produciendo un envío de formulario real que incluya nuestro CAPTCHA.
-            // Si el campo 'sisc_transient_key' no está en la solicitud POST, significa que no hay
-            // nada que validar (p. ej., es una carga de página inicial - GET).
-            // En ese caso, devolvemos el objeto $user sin tocar para permitir que WordPress continúe.
-            if (!isset($_POST["sisc_transient_key"])) {
+            // --- INICIO CORRECCIÓN: MITIGACIÓN DE BYPASS DE AUTENTICACIÓN ---
+            // La validación del CAPTCHA solo debe saltarse si NO es un intento de login por formulario.
+            // Un intento de login por formulario siempre tendrá 'pwd' y 'log' en $_POST.
+            $is_form_login_attempt = isset($_POST['log'], $_POST['pwd']);
+
+            if ($is_form_login_attempt) {
+                 // Si es un intento de login, los campos del CAPTCHA son OBLIGATORIOS.
+                if (!isset($_POST["sisc_transient_key"])) {
+                    $this->_record_failed_attempt(); // Se registra el intento fallido de bypass.
+                    return new WP_Error(
+                        'sisc_missing_fields',
+                        __('<strong>ERROR</strong>: CAPTCHA field is missing. Please enable JavaScript or contact the administrator.', 'secure-image-sequence-captcha')
+                    );
+                }
+            } else {
+                // No es un intento de login por formulario (ej. auth por cookie), no se necesita CAPTCHA.
                 return $user;
             }
-            // --- FIN DE LA MITIGACIÓN ---
-
+            // --- FIN CORRECCIÓN ---
+            
             $validation_result = $this->perform_captcha_validation();
 
             if (is_wp_error($validation_result)) {
